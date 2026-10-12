@@ -1,0 +1,119 @@
+import html
+import json
+import os
+import sys
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+API_URL = "https://api.search.brave.com/res/v1/web/search"
+API_KEY = os.getenv("BRAVE_SEARCH_API_KEY", "").strip()
+OUT = Path("public/index.html")
+
+# These are web-search queries only. No direct requests or scraping of job-board pages.
+QUERIES = [
+ {"country":"AU","label":"Australia · sponsorship","kind":"sponsorship","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "482 visa" OR "employer sponsored") Australia jobs'},
+ {"country":"AU","label":"Australia · relocation","kind":"relocation","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("relocation assistance" OR "relocation package") Australia jobs'},
+ {"country":"AU","label":"Australia · SEEK sponsorship","kind":"sponsorship","q":'site:seek.com.au ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "482 visa")'},
+ {"country":"AU","label":"Australia · company careers","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Head of Engineering") ("visa sponsorship" OR relocation) Australia careers'},
+ {"country":"NZ","label":"New Zealand · sponsorship","kind":"sponsorship","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "accredited employer" OR "work visa") "New Zealand" jobs'},
+ {"country":"NZ","label":"New Zealand · relocation","kind":"relocation","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("relocation assistance" OR "relocation package") "New Zealand" jobs'},
+ {"country":"NZ","label":"New Zealand · SEEK sponsorship","kind":"sponsorship","q":'site:seek.co.nz ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "accredited employer")'},
+ {"country":"NZ","label":"New Zealand · company careers","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Head of Engineering") ("visa sponsorship" OR relocation) "New Zealand" careers'},
+]
+ROLE_TERMS = ["software engineering manager","platform engineering manager","engineering manager","cloud engineering manager","devops manager","head of engineering","infrastructure engineering manager","platform engineering lead","engineering lead"]
+SPONSOR_TERMS = ["visa sponsorship","sponsorship available","482 visa","subclass 482","employer sponsored","employer sponsorship","accredited employer","work visa","visa support","sponsor visa"]
+RELOCATION_TERMS = ["relocation","relocation assistance","relocation package","relocation support"]
+NEGATIVE_TERMS = ["no sponsorship","not offering sponsorship","must have full working rights","full working rights required","unrestricted working rights","citizen or permanent resident only"]
+NOISE_TERMS = ["course","training","salary guide","what is","how to become","resume template"]
+
+def matches(text, terms):
+    low = text.lower()
+    return [t for t in terms if t in low]
+
+def api_search(query, country):
+    params = urllib.parse.urlencode({"q":query,"country":country,"search_lang":"en","count":10,"freshness":"pw","safesearch":"moderate"})
+    req = urllib.request.Request(API_URL + "?" + params, headers={
+        "Accept":"application/json","X-Subscription-Token":API_KEY,"User-Agent":"TalentBridgeJobSearch/1.0"})
+    with urllib.request.urlopen(req, timeout=25) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+def classify(item, meta):
+    title = (item.get("title") or "").strip()
+    desc = (item.get("description") or "").strip()
+    url = (item.get("url") or "").strip()
+    text = f"{title} {desc} {url}".lower()
+    roles = matches(text, ROLE_TERMS)
+    title_roles = matches(title, ROLE_TERMS)
+    sponsor = matches(text, SPONSOR_TERMS)
+    relocation = matches(text, RELOCATION_TERMS)
+    negatives = matches(text, NEGATIVE_TERMS)
+    if not roles or matches(text, NOISE_TERMS) or not url.startswith("http"):
+        return None
+    domain = urllib.parse.urlparse(url).netloc.lower().removeprefix("www.")
+    source = "SEEK" if "seek.com.au" in domain or "seek.co.nz" in domain else ("LinkedIn" if "linkedin.com" in domain else ("Indeed" if "indeed." in domain else domain))
+    score = 30 + (20 if title_roles else 0) + min(18,6*len(sponsor)) + min(12,6*len(relocation))
+    if any(t in text for t in ["aws","kubernetes","eks","cloud platform","ci/cd","devops"]): score += 5
+    if negatives: score -= 35
+    score = max(0,min(100,score))
+    if negatives: status, cls = "Possível restrição: verificar", "negative"
+    elif sponsor and relocation: status, cls = "Menção a sponsorship e relocation", "strong"
+    elif sponsor: status, cls = "Menção a sponsorship", "strong"
+    elif relocation: status, cls = "Menção a relocation", "medium"
+    else: status, cls = "Patrocínio não confirmado", "unknown"
+    return {"title":title,"url":url,"description":desc,"country":meta["country"],"source":source,
+            "sponsor":sponsor,"relocation":relocation,"negatives":negatives,"status":status,
+            "cls":cls,"score":score,"query":meta["label"]}
+
+def render(jobs, generated_at, error=None):
+    jobs.sort(key=lambda j:(j["score"],j["country"]=="AU"),reverse=True)
+    cards=[]
+    for j in jobs:
+        tags=[f'<span class="tag">{html.escape(j["country"])}</span>',f'<span class="tag">{html.escape(j["source"])}</span>',f'<span class="tag {j["cls"]}">{html.escape(j["status"])}</span>']
+        if j["sponsor"]: tags.append('<span class="tag strong">Sponsorship: menção encontrada</span>')
+        if j["relocation"]: tags.append('<span class="tag medium">Relocation: menção encontrada</span>')
+        if j["negatives"]: tags.append('<span class="tag negative">Possível restrição</span>')
+        evidence=[]
+        if j["sponsor"]: evidence.append("Sponsorship: "+", ".join(j["sponsor"]))
+        if j["relocation"]: evidence.append("Relocation: "+", ".join(j["relocation"]))
+        if j["negatives"]: evidence.append("Restrições: "+", ".join(j["negatives"]))
+        evidence_html='<p class="evidence">'+html.escape(" · ".join(evidence))+'</p>' if evidence else ""
+        cards.append(f'''<article class="job"><div class="jobtop"><span class="source">{html.escape(j["source"])} · {html.escape(j["country"])}</span><span class="score">Relevância {j["score"]}/100</span></div><h2><a href="{html.escape(j["url"],quote=True)}" target="_blank" rel="noopener noreferrer">{html.escape(j["title"])}</a></h2><p class="snippet">{html.escape(j["description"] or "Sem resumo fornecido pelo mecanismo de pesquisa.")}</p><div class="tags">{"".join(tags)}</div>{evidence_html}<p class="meta">Encontrada via: {html.escape(j["query"])} · <a href="{html.escape(j["url"],quote=True)}" target="_blank" rel="noopener noreferrer">Abrir anúncio original ↗</a></p></article>''')
+    empty = '<div class="empty"><h2>Nenhuma vaga passou pelos filtros nesta execução</h2><p>Isso não significa que não existam vagas: a cobertura depende da indexação do mecanismo de busca. Tente novamente na próxima execução.</p></div>' if not cards else ""
+    error_html=f'<div class="warning"><strong>Aviso da execução:</strong> {html.escape(error)}</div>' if error else ""
+    return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Talent Bridge AU/NZ — Relatório de vagas</title>
+<style>
+:root{{--bg:#f4f6fb;--panel:#fff;--ink:#182238;--muted:#66728a;--line:#e2e7f0;--blue:#2457d6;--green:#12684f;--amber:#8b5800;--red:#9c3030}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}}header{{background:#111b31;color:#fff;padding:28px 18px}}.wrap{{max-width:1100px;margin:auto}}.eyebrow{{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:#a8bdff;font-weight:800}}h1{{font-size:clamp(27px,4vw,38px);line-height:1.1;letter-spacing:-.03em;margin:8px 0}}header p{{color:#d5deef;margin:8px 0 0}}main{{max-width:1100px;margin:22px auto;padding:0 16px 36px}}.stats{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}}.stat,.job,.empty,.warning{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px}}.stat span{{display:block;font-size:12px;color:var(--muted)}}.stat strong{{font-size:24px}}.toolbar{{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0}}.toolbar p{{font-size:12px;color:var(--muted);margin:0}}.joblist{{display:grid;gap:12px}}.jobtop{{display:flex;justify-content:space-between;gap:8px;align-items:center}}.source{{font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.1em;color:var(--blue)}}.score{{font-size:11px;color:var(--muted);white-space:nowrap}}.job h2{{font-size:18px;line-height:1.3;margin:9px 0}}a{{color:#214dbb}}.snippet{{font-size:13px;color:#4c5870;margin:0 0 10px}}.tags{{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}}.tag{{font-size:10px;background:#eff2f7;color:#46536a;border-radius:99px;padding:4px 8px}}.tag.strong{{background:#e4f6ee;color:var(--green)}}.tag.medium{{background:#fff1d8;color:var(--amber)}}.tag.negative{{background:#fdeaea;color:var(--red)}}.evidence{{font-size:12px;font-weight:650}}.meta{{font-size:11px;color:var(--muted);margin:12px 0 0}}.warning{{background:#fff8e8;border-color:#ecd8a8;color:#684a14;margin-bottom:14px}}.empty p,.footnote{{font-size:13px;color:var(--muted)}}.footnote{{margin-top:18px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px}}@media(max-width:600px){{.stats{{grid-template-columns:1fr 1fr}}.jobtop{{align-items:flex-start;flex-direction:column}}}}
+</style></head><body><header><div class="wrap"><div class="eyebrow">Relatório automatizado · duas vezes por dia</div><h1>Talent Bridge <span style="color:#a8bdff">AU · NZ</span></h1><p>Vagas de liderança em software, plataformas, cloud e DevOps. Prioridade para menções a visa sponsorship e relocation.</p></div></header><main>{error_html}<div class="stats"><div class="stat"><span>Resultados relevantes</span><strong>{len(jobs)}</strong></div><div class="stat"><span>Austrália</span><strong>{sum(1 for j in jobs if j["country"]=="AU")}</strong></div><div class="stat"><span>Nova Zelândia</span><strong>{sum(1 for j in jobs if j["country"]=="NZ")}</strong></div></div><div class="toolbar"><p>Última execução: {html.escape(generated_at)} UTC</p></div><div class="joblist">{"".join(cards)}{empty}</div><div class="footnote"><strong>Importante:</strong> termos de sponsorship/relocation são encontrados nos títulos e resumos do mecanismo de pesquisa, não verificados contra a página completa. A menção não garante patrocínio. Confirme no anúncio original se aceitam candidatos offshore. O agente não faz scraping direto do SEEK; usa resultados devolvidos pela API de pesquisa. Sem banco de dados: cada execução substitui o relatório anterior.</div></main></body></html>'''
+
+def main():
+    if not API_KEY:
+        print("Missing BRAVE_SEARCH_API_KEY repository secret.", file=sys.stderr)
+        sys.exit(2)
+    found={}
+    errors=[]
+    for meta in QUERIES:
+        try:
+            data=api_search(meta["q"],meta["country"])
+            for item in ((data.get("web") or {}).get("results") or []):
+                job=classify(item,meta)
+                if not job: continue
+                key=job["url"].split("#",1)[0].rstrip("/")
+                if key not in found or job["score"]>found[key]["score"]: found[key]=job
+            time.sleep(0.7)
+        except Exception as exc:
+            errors.append(f'{meta["label"]}: {type(exc).__name__}: {exc}')
+            print(f'Search failed for {meta["label"]}: {exc}',file=sys.stderr)
+    if not found and errors:
+        print("All searches failed; refusing to publish a misleading empty report.",file=sys.stderr)
+        sys.exit(1)
+    timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    warning="; ".join(errors[:3]) if errors else None
+    OUT.parent.mkdir(parents=True,exist_ok=True)
+    OUT.write_text(render(list(found.values()),timestamp,warning),encoding="utf-8")
+    print(f"Published report with {len(found)} unique candidates; {len(errors)} query errors.")
+
+if __name__=="__main__":
+    main()
