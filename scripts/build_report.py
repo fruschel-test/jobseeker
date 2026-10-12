@@ -14,14 +14,23 @@ OUT = Path("public/index.html")
 
 # These are web-search queries only. No direct requests or scraping of job-board pages.
 QUERIES = [
+ # General discovery queries
  {"country":"AU","label":"Australia · sponsorship","kind":"sponsorship","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "482 visa" OR "employer sponsored") Australia jobs'},
  {"country":"AU","label":"Australia · relocation","kind":"relocation","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("relocation assistance" OR "relocation package") Australia jobs'},
- {"country":"AU","label":"Australia · SEEK sponsorship","kind":"sponsorship","q":'site:seek.com.au ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "482 visa")'},
- {"country":"AU","label":"Australia · company careers","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Head of Engineering") ("visa sponsorship" OR relocation) Australia careers'},
+ {"country":"AU","label":"Australia · SEEK indexed results","kind":"sponsorship","q":'site:seek.com.au ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager" OR "Head of Engineering") ("visa sponsorship" OR "482 visa" OR relocation)'},
+ {"country":"AU","label":"Australia · Indeed indexed results","kind":"mixed","q":'site:au.indeed.com ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager" OR "Platform Lead") (sponsorship OR relocation) Australia'},
+ {"country":"AU","label":"Australia · LinkedIn indexed results","kind":"mixed","q":'site:linkedin.com/jobs/view ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") (Australia OR Sydney OR Melbourne OR Brisbane) (sponsorship OR relocation)'},
+ {"country":"AU","label":"Australia · Jora indexed results","kind":"mixed","q":'site:jora.com ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager" OR "DevOps Manager") Australia (sponsorship OR relocation)'},
+ {"country":"AU","label":"Australia · employer ATS pages","kind":"mixed","q":'(site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:careers.smartrecruiters.com) ("Engineering Manager" OR "Platform Engineering Manager" OR "Head of Engineering") (Australia OR Sydney OR Melbourne) (sponsorship OR relocation)'},
+ {"country":"AU","label":"Australia · company careers and cloud leadership","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Infrastructure Engineering Manager" OR "Director of Engineering") ("visa sponsorship" OR relocation OR "subclass 482") Australia careers'},
  {"country":"NZ","label":"New Zealand · sponsorship","kind":"sponsorship","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "accredited employer" OR "work visa") "New Zealand" jobs'},
  {"country":"NZ","label":"New Zealand · relocation","kind":"relocation","q":'("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("relocation assistance" OR "relocation package") "New Zealand" jobs'},
- {"country":"NZ","label":"New Zealand · SEEK sponsorship","kind":"sponsorship","q":'site:seek.co.nz ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "accredited employer")'},
- {"country":"NZ","label":"New Zealand · company careers","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Head of Engineering") ("visa sponsorship" OR relocation) "New Zealand" careers'},
+ {"country":"NZ","label":"New Zealand · SEEK indexed results","kind":"sponsorship","q":'site:seek.co.nz ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager" OR "Head of Engineering") ("visa sponsorship" OR "accredited employer" OR relocation)'},
+ {"country":"NZ","label":"New Zealand · Trade Me Jobs indexed results","kind":"mixed","q":'site:trademe.co.nz/a/jobs ("Software Engineering Manager" OR "Engineering Manager" OR "Platform Lead" OR "Head of Engineering") (visa OR sponsorship OR relocation)'},
+ {"country":"NZ","label":"New Zealand · Indeed indexed results","kind":"mixed","q":'site:nz.indeed.com ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") (sponsorship OR relocation) "New Zealand"'},
+ {"country":"NZ","label":"New Zealand · LinkedIn indexed results","kind":"mixed","q":'site:linkedin.com/jobs/view ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("New Zealand" OR Auckland OR Wellington OR Christchurch) (sponsorship OR relocation)'},
+ {"country":"NZ","label":"New Zealand · employer ATS pages","kind":"mixed","q":'(site:boards.greenhouse.io OR site:jobs.lever.co OR site:jobs.ashbyhq.com OR site:careers.smartrecruiters.com) ("Engineering Manager" OR "Platform Engineering Manager" OR "Head of Engineering") ("New Zealand" OR Auckland OR Wellington) (sponsorship OR relocation)'},
+ {"country":"NZ","label":"New Zealand · company careers and cloud leadership","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Infrastructure Engineering Manager" OR "Director of Engineering") ("visa sponsorship" OR relocation OR "accredited employer") "New Zealand" careers'},
 ]
 ROLE_TERMS = ["software engineering manager","platform engineering manager","engineering manager","cloud engineering manager","devops manager","head of engineering","infrastructure engineering manager","platform engineering lead","engineering lead","director of engineering","engineering director","head of platform","platform lead"]
 # Require location evidence in the result itself; Brave's country parameter alone is not enough.
@@ -70,7 +79,7 @@ def classify(item, meta):
         domain_country = domain.endswith(".com.au") or domain.endswith(".net.au") or domain.endswith(".org.au")
     else:
         locations = matches(text, NZ_LOCATION_TERMS)
-        domain_country = domain.endswith(".co.nz") or domain.endswith(". govt.nz") or domain.endswith(".govt.nz")
+        domain_country = domain.endswith(".co.nz") or domain.endswith(".govt.nz")
     if not locations and not domain_country:
         return None
 
@@ -78,7 +87,26 @@ def classify(item, meta):
     if matches(text, OUTSIDE_TERMS):
         return None
 
-    source = "SEEK" if "seek.com.au" in domain or "seek.co.nz" in domain else ("LinkedIn" if "linkedin.com" in domain else ("Indeed" if "indeed." in domain else domain))
+    if "seek.com.au" in domain or "seek.co.nz" in domain:
+        source = "SEEK (resultado indexado)"
+    elif "linkedin.com" in domain:
+        source = "LinkedIn (resultado indexado)"
+    elif "indeed." in domain:
+        source = "Indeed (resultado indexado)"
+    elif "jora.com" in domain:
+        source = "Jora (resultado indexado)"
+    elif "trademe.co.nz" in domain:
+        source = "Trade Me Jobs (resultado indexado)"
+    elif "greenhouse.io" in domain:
+        source = "Greenhouse / página de carreira"
+    elif "lever.co" in domain:
+        source = "Lever / página de carreira"
+    elif "ashbyhq.com" in domain:
+        source = "Ashby / página de carreira"
+    elif "smartrecruiters.com" in domain:
+        source = "SmartRecruiters / página de carreira"
+    else:
+        source = domain
     score = 30 + (20 if title_roles else 0) + min(18,6*len(sponsor)) + min(12,6*len(relocation))
     if any(t in text for t in ["aws","kubernetes","eks","cloud platform","ci/cd","devops"]): score += 5
     if negatives: score -= 35
