@@ -20,6 +20,7 @@ Agente estático executado duas vezes por dia via GitHub Actions. Pesquisa resul
 - Nunca coloque a chave API no HTML ou em arquivos versionados; use o GitHub Actions Secret.
 - O relatório é público se o site/repositório for público.
 - O script consulta somente a API de pesquisa e usa título, URL e snippet devolvidos por ela. Não baixa nem analisa diretamente as páginas dos portais.
+- O filtro exclui vagas que mencionam trabalho remoto e exige sinais de localização no próprio resultado ou domínio local; isso reduz falsos positivos, mas pode deixar de fora anúncios legítimos com poucos detalhes no snippet.
 - A classificação é heurística; “menção encontrada” não garante sponsorship nem que a vaga siga aberta. Confirme no anúncio original se aceita candidatos offshore.
 - Não há banco de dados nem histórico persistente. Cada execução substitui o relatório anterior.
 - A busca depende do índice externo e não garante cobertura total ou atualização imediata.

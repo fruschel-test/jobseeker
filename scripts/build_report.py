@@ -23,7 +23,12 @@ QUERIES = [
  {"country":"NZ","label":"New Zealand · SEEK sponsorship","kind":"sponsorship","q":'site:seek.co.nz ("Software Engineering Manager" OR "Platform Engineering Manager" OR "Engineering Manager") ("visa sponsorship" OR "accredited employer")'},
  {"country":"NZ","label":"New Zealand · company careers","kind":"mixed","q":'("Cloud Engineering Manager" OR "DevOps Manager" OR "Head of Engineering") ("visa sponsorship" OR relocation) "New Zealand" careers'},
 ]
-ROLE_TERMS = ["software engineering manager","platform engineering manager","engineering manager","cloud engineering manager","devops manager","head of engineering","infrastructure engineering manager","platform engineering lead","engineering lead"]
+ROLE_TERMS = ["software engineering manager","platform engineering manager","engineering manager","cloud engineering manager","devops manager","head of engineering","infrastructure engineering manager","platform engineering lead","engineering lead","director of engineering","engineering director","head of platform","platform lead"]
+# Require location evidence in the result itself; Brave's country parameter alone is not enough.
+AU_LOCATION_TERMS = ["australia", "sydney", "melbourne", "brisbane", "perth", "adelaide", "canberra", "gold coast", "hobart", "new south wales", "victoria, australia", "queensland", "western australia", "south australia", "tasmania", "act, australia"]
+NZ_LOCATION_TERMS = ["new zealand", "auckland", "wellington", "christchurch", "hamilton, new zealand", "tauranga", "dunedin", "queenstown", "waikato", "canterbury, new zealand"]
+REMOTE_TERMS = ["remote", "work from anywhere", "anywhere in the world", "fully distributed", "distributed team", "work remotely"]
+OUTSIDE_TERMS = ["united states", "u.s.-only", "us only", "remote us", "remote - us", "remote, us", "new york", "california", "texas", "florida", "seattle", "san francisco", "united kingdom", "uk only", "canada only", "india only", "europe only"]
 SPONSOR_TERMS = ["visa sponsorship","sponsorship available","482 visa","subclass 482","employer sponsored","employer sponsorship","accredited employer","work visa","visa support","sponsor visa"]
 RELOCATION_TERMS = ["relocation","relocation assistance","relocation package","relocation support"]
 NEGATIVE_TERMS = ["no sponsorship","not offering sponsorship","must have full working rights","full working rights required","unrestricted working rights","citizen or permanent resident only"]
@@ -52,7 +57,27 @@ def classify(item, meta):
     negatives = matches(text, NEGATIVE_TERMS)
     if not roles or matches(text, NOISE_TERMS) or not url.startswith("http"):
         return None
+
+    # Reject remote roles entirely, per the user's requirement (including remote AU/NZ roles).
+    if matches(text, REMOTE_TERMS):
+        return None
+
+    # A result must contain some evidence that the actual job is in the target country.
+    # Do not trust Brave's country parameter alone: it can return unrelated countries.
     domain = urllib.parse.urlparse(url).netloc.lower().removeprefix("www.")
+    if meta["country"] == "AU":
+        locations = matches(text, AU_LOCATION_TERMS)
+        domain_country = domain.endswith(".com.au") or domain.endswith(".net.au") or domain.endswith(".org.au")
+    else:
+        locations = matches(text, NZ_LOCATION_TERMS)
+        domain_country = domain.endswith(".co.nz") or domain.endswith(". govt.nz") or domain.endswith(".govt.nz")
+    if not locations and not domain_country:
+        return None
+
+    # Explicit off-target location/eligibility signals override a generic sponsorship mention.
+    if matches(text, OUTSIDE_TERMS):
+        return None
+
     source = "SEEK" if "seek.com.au" in domain or "seek.co.nz" in domain else ("LinkedIn" if "linkedin.com" in domain else ("Indeed" if "indeed." in domain else domain))
     score = 30 + (20 if title_roles else 0) + min(18,6*len(sponsor)) + min(12,6*len(relocation))
     if any(t in text for t in ["aws","kubernetes","eks","cloud platform","ci/cd","devops"]): score += 5
@@ -86,7 +111,7 @@ def render(jobs, generated_at, error=None):
     return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Talent Bridge AU/NZ — Relatório de vagas</title>
 <style>
 :root{{--bg:#f4f6fb;--panel:#fff;--ink:#182238;--muted:#66728a;--line:#e2e7f0;--blue:#2457d6;--green:#12684f;--amber:#8b5800;--red:#9c3030}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}}header{{background:#111b31;color:#fff;padding:28px 18px}}.wrap{{max-width:1100px;margin:auto}}.eyebrow{{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:#a8bdff;font-weight:800}}h1{{font-size:clamp(27px,4vw,38px);line-height:1.1;letter-spacing:-.03em;margin:8px 0}}header p{{color:#d5deef;margin:8px 0 0}}main{{max-width:1100px;margin:22px auto;padding:0 16px 36px}}.stats{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}}.stat,.job,.empty,.warning{{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px}}.stat span{{display:block;font-size:12px;color:var(--muted)}}.stat strong{{font-size:24px}}.toolbar{{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:14px 0}}.toolbar p{{font-size:12px;color:var(--muted);margin:0}}.joblist{{display:grid;gap:12px}}.jobtop{{display:flex;justify-content:space-between;gap:8px;align-items:center}}.source{{font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.1em;color:var(--blue)}}.score{{font-size:11px;color:var(--muted);white-space:nowrap}}.job h2{{font-size:18px;line-height:1.3;margin:9px 0}}a{{color:#214dbb}}.snippet{{font-size:13px;color:#4c5870;margin:0 0 10px}}.tags{{display:flex;flex-wrap:wrap;gap:6px;margin:9px 0}}.tag{{font-size:10px;background:#eff2f7;color:#46536a;border-radius:99px;padding:4px 8px}}.tag.strong{{background:#e4f6ee;color:var(--green)}}.tag.medium{{background:#fff1d8;color:var(--amber)}}.tag.negative{{background:#fdeaea;color:var(--red)}}.evidence{{font-size:12px;font-weight:650}}.meta{{font-size:11px;color:var(--muted);margin:12px 0 0}}.warning{{background:#fff8e8;border-color:#ecd8a8;color:#684a14;margin-bottom:14px}}.empty p,.footnote{{font-size:13px;color:var(--muted)}}.footnote{{margin-top:18px;padding:14px;background:#fff;border:1px solid var(--line);border-radius:12px}}@media(max-width:600px){{.stats{{grid-template-columns:1fr 1fr}}.jobtop{{align-items:flex-start;flex-direction:column}}}}
-</style></head><body><header><div class="wrap"><div class="eyebrow">Relatório automatizado · duas vezes por dia</div><h1>Talent Bridge <span style="color:#a8bdff">AU · NZ</span></h1><p>Vagas de liderança em software, plataformas, cloud e DevOps. Prioridade para menções a visa sponsorship e relocation.</p></div></header><main>{error_html}<div class="stats"><div class="stat"><span>Resultados relevantes</span><strong>{len(jobs)}</strong></div><div class="stat"><span>Austrália</span><strong>{sum(1 for j in jobs if j["country"]=="AU")}</strong></div><div class="stat"><span>Nova Zelândia</span><strong>{sum(1 for j in jobs if j["country"]=="NZ")}</strong></div></div><div class="toolbar"><p>Última execução: {html.escape(generated_at)} UTC</p></div><div class="joblist">{"".join(cards)}{empty}</div><div class="footnote"><strong>Importante:</strong> termos de sponsorship/relocation são encontrados nos títulos e resumos do mecanismo de pesquisa, não verificados contra a página completa. A menção não garante patrocínio. Confirme no anúncio original se aceitam candidatos offshore. O agente não faz scraping direto do SEEK; usa resultados devolvidos pela API de pesquisa. Sem banco de dados: cada execução substitui o relatório anterior.</div></main></body></html>'''
+</style></head><body><header><div class="wrap"><div class="eyebrow">Relatório automatizado · duas vezes por dia</div><h1>Talent Bridge <span style="color:#a8bdff">AU · NZ</span></h1><p>Vagas de liderança em software, plataformas, cloud e DevOps. Prioridade para vagas presenciais/híbridas localizadas na Austrália ou na Nova Zelândia, com evidência de visa sponsorship e/ou relocation.</p></div></header><main>{error_html}<div class="stats"><div class="stat"><span>Resultados relevantes</span><strong>{len(jobs)}</strong></div><div class="stat"><span>Austrália</span><strong>{sum(1 for j in jobs if j["country"]=="AU")}</strong></div><div class="stat"><span>Nova Zelândia</span><strong>{sum(1 for j in jobs if j["country"]=="NZ")}</strong></div></div><div class="toolbar"><p>Última execução: {html.escape(generated_at)} UTC</p></div><div class="joblist">{"".join(cards)}{empty}</div><div class="footnote"><strong>Importante:</strong> termos de sponsorship/relocation são encontrados nos títulos e resumos do mecanismo de pesquisa, não verificados contra a página completa. A menção não garante patrocínio. Confirme no anúncio original se aceitam candidatos offshore. O agente não faz scraping direto do SEEK; usa resultados devolvidos pela API de pesquisa. Sem banco de dados: cada execução substitui o relatório anterior.</div></main></body></html>'''
 
 def main():
     if not API_KEY:
