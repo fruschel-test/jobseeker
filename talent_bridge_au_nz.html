@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talent Bridge — AU & NZ</title>
+<style>
+:root{--bg:#f5f7fb;--panel:#fff;--ink:#172033;--muted:#657089;--line:#e4e8f0;--blue:#2457d6;--blue2:#eaf0ff;--green:#147d64;--amber:#9a5a00}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:#111b31;color:#fff;padding:28px 22px 30px}.wrap{max-width:1160px;margin:auto}
+.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:11px;font-weight:800;color:#9db7ff}
+h1{font-size:clamp(27px,4vw,40px);line-height:1.12;margin:8px 0 10px;letter-spacing:-.03em}
+header p{max-width:720px;color:#d4dced;margin:0}
+main{max-width:1160px;margin:22px auto;padding:0 18px 40px}
+.notice{background:#fff8e8;border:1px solid #f0d9a8;color:#6d4b12;border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px}
+.layout{display:grid;grid-template-columns:310px minmax(0,1fr);gap:18px}
+.panel,.result{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 3px 12px #17203308}
+.panel{padding:18px;height:max-content}.panel h2,.section-head h2{font-size:17px;margin:0 0 15px}
+label{display:block;font-weight:700;font-size:12px;margin:15px 0 6px;color:#39445a}
+input,select{width:100%;padding:11px 12px;border:1px solid #d8deea;border-radius:9px;background:white;color:var(--ink);font:inherit}
+input:focus,select:focus{outline:2px solid #b6c9ff;border-color:var(--blue)}
+.checks{display:grid;gap:9px;margin-top:8px}.check{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#39445a}.check input{width:auto;margin-top:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:10px;padding:11px 14px;font:700 13px inherit;cursor:pointer;text-decoration:none}
+.primary{background:var(--blue);color:white;width:100%;margin-top:18px}.secondary{background:var(--blue2);color:#2048b2}.ghost{background:#f2f4f8;color:#3d4961}
+.small{font-size:12px;color:var(--muted);margin-top:12px}
+.results{min-width:0}.section-head{display:flex;justify-content:space-between;gap:12px;align-items:end;margin:2px 0 12px}.section-head p{margin:0;color:var(--muted);font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.result{padding:16px;display:flex;flex-direction:column;gap:10px}
+.source{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+.result h3{font-size:16px;line-height:1.3;margin:0}.result p{font-size:13px;color:var(--muted);margin:0}
+.tags{display:flex;flex-wrap:wrap;gap:6px}.tag{font-size:11px;padding:4px 8px;border-radius:999px;background:#f0f3f8;color:#47536b}.tag.good{background:#e7f7f0;color:#12674f}.tag.warn{background:#fff2dc;color:#875000}
+.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:auto;padding-top:3px}.actions a{font-size:12px}
+.full{grid-column:1/-1}
+.how{margin-top:18px;padding:18px}.how h2{margin:0 0 8px;font-size:16px}.how p,.how li{font-size:13px;color:var(--muted)}
+footer{max-width:1160px;margin:auto;padding:0 18px 28px;color:var(--muted);font-size:12px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.panel{height:auto}.section-head{align-items:start;flex-direction:column}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<div class="eyebrow">Career search workspace</div>
+<h1>Talent Bridge <span style="color:#9db7ff">AU · NZ</span></h1>
+<p>Painel de pesquisas para cargos de liderança em engenharia, priorizando oportunidades com visa sponsorship e relocation para candidatos que estão fora da Austrália e da Nova Zelândia.</p>
+</div></header>
+<main>
+<div class="notice"><strong>Como funciona:</strong> este painel não tem backend nem banco de dados. Os botões abrem pesquisas nos portais selecionados; os resultados e a confirmação de sponsorship devem ser verificados na página original da vaga.</div>
+<div class="layout">
+<aside class="panel">
+<h2>Personalizar pesquisas</h2>
+<label for="role">Cargo / palavras-chave</label>
+<select id="role">
+<option value='"Software Engineering Manager"'>Software Engineering Manager</option>
+<option value='"Platform Engineering Manager"'>Platform Engineering Manager</option>
+<option value='"Engineering Manager" software platform cloud'>Engineering Manager — Software / Platform</option>
+<option value='"Cloud Engineering Manager" OR "DevOps Manager"'>Cloud / DevOps Engineering Manager</option>
+<option value='"Head of Engineering" platform software'>Head of Engineering — Platform / Software</option>
+<option value='"Engineering Lead" Kubernetes cloud'>Engineering Lead — Kubernetes / Cloud</option>
+</select>
+<label for="country">País</label>
+<select id="country"><option value="au">Austrália</option><option value="nz">Nova Zelândia</option><option value="both">Ambos os países</option></select>
+<label for="keywords">Termos de imigração (opcional)</label>
+<input id="keywords" value='"visa sponsorship" OR relocation OR "482 visa"' placeholder='Ex.: visa sponsorship, relocation'>
+<label>Priorizar oportunidades que mencionem</label>
+<div class="checks">
+<label class="check"><input type="checkbox" id="sponsor" checked> Visa sponsorship / work visa</label>
+<label class="check"><input type="checkbox" id="relocation" checked> Relocation / relocation assistance</label>
+<label class="check"><input type="checkbox" id="international" checked> Applicants overseas / international applicants</label>
+</div>
+<button class="btn primary" onclick="runSearches()">Buscar em todas as fontes ↗</button>
+<div class="small">As palavras-chave ajudam a encontrar anúncios relevantes, mas não confirmam elegibilidade migratória nem garantem patrocínio.</div>
+</aside>
+<section class="results">
+<div class="section-head"><div><h2>Fontes de pesquisa</h2><p>Selecione uma fonte para abrir uma pesquisa com os filtros atuais.</p></div><button class="btn ghost" onclick="resetFilters()">Restaurar filtros</button></div>
+<div class="cards" id="cards">
+<article class="result"><div class="source">Principal · Austrália</div><h3>SEEK Australia</h3><p>Portal principal para vagas de gestão de engenharia no mercado australiano.</p><div class="tags"><span class="tag">Empregos AU</span><span class="tag good">Sponsorship</span></div><div class="actions"><a class="btn secondary" href="#" onclick="openSource('seekau');return false">Pesquisar no SEEK AU ↗</a></div></article>
+<article class="result"><div class="source">Principal · Nova Zelândia</div><h3>SEEK New Zealand</h3><p>Pesquise cargos de engenharia e valide os requisitos diretamente no anúncio.</p><div class="tags"><span class="tag">Empregos NZ</span><span class="tag good">Relocation</span></div><div class="actions"><a class="btn secondary" href="#" onclick="openSource('seeknz');return false">Pesquisar no SEEK NZ ↗</a></div></article>
+<article class="result"><div class="source">Busca ampla</div><h3>LinkedIn Jobs</h3><p>Útil para encontrar vagas executivas, recrutadores e anúncios que mencionem sponsorship.</p><div class="tags"><span class="tag">Recrutadores</span><span class="tag">Liderança</span></div><div class="actions"><a class="btn secondary" href="#" onclick="openSource('linkedin');return false">Pesquisar no LinkedIn ↗</a></div></article>
+<article class="result"><div class="source">Busca ampla</div><h3>Indeed</h3><p>Outra fonte de anúncios de emprego e descrições que citam apoio de visto.</p><div class="tags"><span class="tag">Vagas</span><span class="tag">Palavras-chave</span></div><div class="actions"><a class="btn secondary" href="#" onclick="openSource('indeed');return false">Pesquisar no Indeed ↗</a></div></article>
+<article class="result"><div class="source">Busca na web</div><h3>Google — anúncios e páginas de carreira</h3><p>Amplia a pesquisa para sites corporativos e páginas de carreira que não aparecem em todos os agregadores.</p><div class="tags"><span class="tag">Sites de empresas</span><span class="tag">Busca ampla</span></div><div class="actions"><a class="btn secondary" href="#" onclick="openSource('google');return false">Pesquisar na web ↗</a></div></article>
+<article class="result"><div class="source">Verificação oficial · Austrália</div><h3>Department of Home Affairs</h3><p>Consulte informações oficiais sobre vistos patrocinados por empregadores. A elegibilidade depende do visto, cargo e circunstâncias individuais.</p><div class="tags"><span class="tag warn">Verificação oficial</span></div><div class="actions"><a class="btn secondary" target="_blank" rel="noopener" href="https://immi.homeaffairs.gov.au/visas/working-in-australia/skill-occupation-list">Consultar ocupações e vistos ↗</a></div></article>
+<article class="result"><div class="source">Verificação oficial · Nova Zelândia</div><h3>Immigration New Zealand</h3><p>Verifique as regras de visto e a lista de empregadores credenciados quando aplicável.</p><div class="tags"><span class="tag warn">Verificação oficial</span></div><div class="actions"><a class="btn secondary" target="_blank" rel="noopener" href="https://www.immigration.govt.nz/work/requirements-for-work-visas/approved-employers/accredited-employer-list/">Ver empregadores credenciados ↗</a></div></article>
+</div>
+<div class="panel how">
+<h2>Como avaliar cada vaga</h2>
+<ul>
+<li><strong>Sponsorship confirmado:</strong> o anúncio declara explicitamente que patrocina visto ou aceita candidatos que precisam de sponsorship.</li>
+<li><strong>Relocation confirmado:</strong> a descrição informa assistência à mudança internacional. Não presuma que relocation inclui visto.</li>
+<li><strong>Não informado:</strong> classifique como “a confirmar” e pergunte ao recrutador antes de investir tempo na candidatura.</li>
+<li><strong>Restrição local:</strong> anúncios que exigem direito de trabalho prévio ou dizem “no sponsorship” não atendem ao objetivo principal.</li>
+</ul>
+<p>Este painel abre consultas externas; não coleta nem armazena anúncios, não envia alertas automáticos e não valida os resultados por conta própria.</p>
+</div>
+</section>
+</div>
+</main>
+<footer>Talent Bridge AU · NZ · Painel local, sem cadastro, banco de dados ou backend.</footer>
+<script>
+function selectedCountries(){
+ const c=document.getElementById('country').value;
+ return c==='both'?['au','nz']:[c];
+}
+function roleTerm(){return document.getElementById('role').value;}
+function immigrationTerms(){
+ let terms=[];
+ if(document.getElementById('sponsor').checked) terms.push('"visa sponsorship"','"sponsorship available"','"work visa"');
+ if(document.getElementById('relocation').checked) terms.push('relocation','"relocation assistance"');
+ if(document.getElementById('international').checked) terms.push('"international applicants"','"overseas applicants"');
+ const extra=document.getElementById('keywords').value.trim();
+ if(extra) terms.push(extra);
+ return terms.join(' OR ');
+}
+function queryFor(country){
+ const loc=country==='au'?'Australia':'New Zealand';
+ return roleTerm()+' ('+immigrationTerms()+') '+loc;
+}
+function urlFor(source,country){
+ const q=queryFor(country);
+ const enc=encodeURIComponent(q);
+ if(source==='seekau') return 'https://au.seek.com/jobs?keywords='+encodeURIComponent(roleTerm()+' '+immigrationTerms());
+ if(source==='seeknz') return 'https://nz.seek.com/jobs?keywords='+encodeURIComponent(roleTerm()+' '+immigrationTerms());
+ if(source==='linkedin') return 'https://www.linkedin.com/jobs/search/?keywords='+enc+'&location='+encodeURIComponent(country==='au'?'Australia':'New Zealand');
+ if(source==='indeed') return 'https://'+(country==='au'?'au':'nz')+'.indeed.com/jobs?q='+enc+'&l='+encodeURIComponent(locFor(country));
+ return 'https://www.google.com/search?q='+enc+'+jobs+careers';
+}
+function locFor(country){return country==='au'?'Australia':'New Zealand';}
+function openSource(source){
+ const countries=selectedCountries();
+ countries.forEach(c=>window.open(urlFor(source,c),'_blank','noopener'));
+}
+function runSearches(){
+ const sources=['seekau','seeknz','linkedin','indeed','google'];
+ const countries=selectedCountries();
+ sources.forEach((s,i)=>{
+  const relevantCountries=s==='seekau'?countries.filter(c=>c==='au'):s==='seeknz'?countries.filter(c=>c==='nz'):countries;
+  relevantCountries.forEach(c=>window.open(urlFor(s,c),'_blank','noopener'));
+ });
+}
+function resetFilters(){
+ document.getElementById('role').selectedIndex=0;
+ document.getElementById('country').value='au';
+ document.getElementById('keywords').value='"visa sponsorship" OR relocation OR "482 visa"';
+ document.getElementById('sponsor').checked=true;
+ document.getElementById('relocation').checked=true;
+ document.getElementById('international').checked=true;
+}
+</script>
+</body></html>
