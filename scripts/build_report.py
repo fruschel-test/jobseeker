@@ -63,6 +63,10 @@ CLOSED_JOB_TERMS = [
     "position has been filled", "applications are closed", "application period has closed",
     "no longer accepting applications", "job posting has expired", "vacancy has expired",
     "this position is closed", "requisition is closed", "job has been closed",
+    "applications no longer being accepted", "position no longer available",
+    "this vacancy is now closed", "job opening is closed", "job posting closed",
+    "we are no longer accepting applications", "the vacancy has been filled",
+    "this role has been filled", "this role is no longer available",
 ]
 NOISE_TERMS = ["course","training","salary guide","what is","how to become","resume template"]
 
@@ -71,7 +75,7 @@ def matches(text, terms):
     return [t for t in terms if t in low]
 
 def api_search(query, country):
-    params = urllib.parse.urlencode({"q":query,"country":country,"search_lang":"en","count":20,"safesearch":"moderate"})
+    params = urllib.parse.urlencode({"q":query,"country":country,"search_lang":"en","count":20,"freshness":"pw","safesearch":"moderate"})
     req = urllib.request.Request(API_URL + "?" + params, headers={
         "Accept":"application/json","X-Subscription-Token":API_KEY,"User-Agent":"TalentBridgeJobSearch/1.0"})
     with urllib.request.urlopen(req, timeout=25) as resp:
@@ -95,7 +99,7 @@ def classify(item, meta):
     if matches(text, NO_SPONSORSHIP_PHRASES):
         return None
 
-    # Reject listings explicitly marked closed/expired, and search results older than 30 days.
+    # Reject listings explicitly marked closed/expired, and search results older than 7 days.
     if matches(text, CLOSED_JOB_TERMS):
         return None
     age_match = __import__("re").search(r"(\d+)\s*(day|week|month|year)s?\s+ago", age)
@@ -103,7 +107,7 @@ def classify(item, meta):
         age_value = int(age_match.group(1))
         age_unit = age_match.group(2)
         age_days = age_value if age_unit == "day" else age_value * 7 if age_unit == "week" else age_value * 30 if age_unit == "month" else age_value * 365
-        if age_days > 30:
+        if age_days > 7:
             return None
 
     # Reject remote roles entirely, per the user's requirement (including remote AU/NZ roles).
