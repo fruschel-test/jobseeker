@@ -53,7 +53,7 @@ def matches(text, terms):
     return [t for t in terms if t in low]
 
 def api_search(query, country):
-    params = urllib.parse.urlencode({"q":query,"country":country,"search_lang":"en","count":10,"freshness":"pw","safesearch":"moderate"})
+    params = urllib.parse.urlencode({"q":query,"country":country,"search_lang":"en","count":20,"safesearch":"moderate"})
     req = urllib.request.Request(API_URL + "?" + params, headers={
         "Accept":"application/json","X-Subscription-Token":API_KEY,"User-Agent":"TalentBridgeJobSearch/1.0"})
     with urllib.request.urlopen(req, timeout=25) as resp:
