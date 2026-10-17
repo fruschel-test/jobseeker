@@ -92,6 +92,101 @@ footer{max-width:1160px;margin:auto;padding:0 18px 28px;color:var(--muted);font-
 </div>
 </section>
 </div>
+
+<section class="results-panel" id="automated-report" style="margin-top:22px;background:#fff;border:1px solid #e4e8f0;border-radius:14px;padding:18px">
+  <div class="section-head">
+    <div><h2>Vagas encontradas pelo relatório automático</h2><p>Resultados da última execução do GitHub Actions, exibidos nesta mesma página.</p></div>
+    <span id="report-updated" class="small">Carregando relatório…</span>
+  </div>
+  <div class="stats" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0">
+    <div class="stat" style="padding:12px;background:#f5f7fb;border-radius:10px"><span class="small">Vagas relevantes</span><strong id="count-total" style="display:block;font-size:24px">—</strong></div>
+    <div class="stat" style="padding:12px;background:#f5f7fb;border-radius:10px"><span class="small">Austrália</span><strong id="count-au" style="display:block;font-size:24px">—</strong></div>
+    <div class="stat" style="padding:12px;background:#f5f7fb;border-radius:10px"><span class="small">Nova Zelândia</span><strong id="count-nz" style="display:block;font-size:24px">—</strong></div>
+  </div>
+  <div class="filter-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+    <label>País<select id="report-country" style="display:block;width:100%;padding:9px;margin-top:4px"><option value="both">Austrália e Nova Zelândia</option><option value="AU">Austrália</option><option value="NZ">Nova Zelândia</option></select></label>
+    <label>Cargo ou palavra-chave<input id="report-keyword" value="Engineering Manager" style="display:block;width:100%;padding:9px;margin-top:4px"></label>
+    <label>Visa sponsorship<select id="report-sponsorship" style="display:block;width:100%;padding:9px;margin-top:4px"><option value="all">Todas as vagas</option><option value="yes">Com menção</option><option value="unknown">Sem confirmação</option><option value="negative">Possível restrição</option></select></label>
+    <label>Modalidade<select id="report-mode" style="display:block;width:100%;padding:9px;margin-top:4px"><option value="all">Todas as modalidades</option><option value="onsite">Presencial</option><option value="hybrid">Híbrido</option></select></label>
+    <label>Relevância mínima: <output id="report-score-value">40</output>/100<input id="report-score" type="range" min="0" max="100" step="5" value="40" style="display:block;width:100%;margin-top:10px"></label>
+    <label style="display:flex;gap:8px;align-items:center;padding-top:22px"><input id="report-relocation" type="checkbox" checked> Priorizar relocation</label>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+    <button class="btn primary" id="report-apply" type="button">Aplicar filtros</button>
+    <button class="btn ghost" id="report-reset" type="button">Restaurar filtros</button>
+  </div>
+  <p id="report-status" class="small" aria-live="polite">Carregando vagas…</p>
+  <div id="report-jobs" style="display:grid;gap:12px"></div>
+</section>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let jobs = [];
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function modeOf(j) {
+    const t = `${j.title||''} ${j.description||''}`.toLowerCase();
+    if (/\bhybrid\\b|\\bhíbrido\\b|\\bhibrido\b/.test(t)) return 'hybrid';
+    if (/\bonsite\\b|\\bon-site\\b|\\bin-office\\b|\\bin person\\b|\\bpresencial\b/.test(t)) return 'onsite';
+    return 'unknown';
+  }
+  function render() {
+    const country = $('report-country').value;
+    const keyword = $('report-keyword').value.trim().toLowerCase();
+    const sponsorship = $('report-sponsorship').value;
+    const mode = $('report-mode').value;
+    const minScore = Number($('report-score').value);
+    const prioritize = $('report-relocation').checked;
+    $('report-score-value').textContent = minScore;
+    let filtered = jobs.filter(j => {
+      const text = `${j.title||''} ${j.description||''} ${j.source||''} ${(j.sponsor||[]).join(' ')} ${(j.relocation||[]).join(' ')}`.toLowerCase();
+      const sponsorState = (j.sponsor||[]).length ? 'yes' : ((j.negatives||[]).length ? 'negative' : 'unknown');
+      return (country === 'both' || j.country === country) &&
+        (!keyword || text.includes(keyword)) &&
+        Number(j.score||0) >= minScore &&
+        (sponsorship === 'all' || sponsorship === sponsorState) &&
+        (mode === 'all' || modeOf(j) === mode);
+    });
+    filtered.sort((a,b) => (prioritize ? Number((b.relocation||[]).length>0)-Number((a.relocation||[]).length>0) : 0) || Number(b.score||0)-Number(a.score||0));
+    $('report-status').textContent = `${filtered.length} de ${jobs.length} vagas encontradas correspondem aos filtros.`;
+    $('report-jobs').innerHTML = filtered.length ? filtered.map(j => {
+      const sponsor = (j.sponsor||[]).length ? 'Menção a sponsorship' : ((j.negatives||[]).length ? 'Possível restrição' : 'Sponsorship não confirmado');
+      const relocation = (j.relocation||[]).length ? ' · Relocation mencionada' : '';
+      return `<article style="border:1px solid #e4e8f0;border-radius:12px;padding:14px">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="small">${esc(j.source)} · ${esc(j.country)}</span><span class="small">Relevância ${Number(j.score||0)}/100</span></div>
+        <h3 style="margin:8px 0"><a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">${esc(j.title)}</a></h3>
+        <p style="margin:6px 0;color:#4c5870;font-size:13px">${esc(j.description)}</p>
+        <p class="small">${esc(sponsor+relocation)}</p><a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">Abrir anúncio original ↗</a>
+      </article>`;
+    }).join('') : '<div style="padding:16px;background:#f5f7fb;border-radius:10px">Nenhuma vaga corresponde aos filtros. Tente reduzir a relevância mínima ou alterar a palavra-chave.</div>';
+  }
+  async function load() {
+    try {
+      const response = await fetch('./jobs.json?ts=' + Date.now(), {cache:'no-store'});
+      if (!response.ok) throw new Error('Relatório ainda não publicado.');
+      const data = await response.json();
+      jobs = Array.isArray(data.jobs) ? data.jobs : [];
+      $('report-updated').textContent = data.generated_at ? `Última execução: ${data.generated_at} UTC` : 'Relatório atualizado';
+      $('count-total').textContent = jobs.length;
+      $('count-au').textContent = jobs.filter(j=>j.country==='AU').length;
+      $('count-nz').textContent = jobs.filter(j=>j.country==='NZ').length;
+      render();
+    } catch (e) {
+      $('report-updated').textContent = 'Relatório indisponível';
+      $('report-status').textContent = 'Não foi possível carregar jobs.json. Execute o workflow de atualização no GitHub Actions.';
+    }
+  }
+  $('report-apply').addEventListener('click', render);
+  $('report-reset').addEventListener('click', () => {
+    $('report-country').value='both'; $('report-keyword').value='Engineering Manager';
+    $('report-sponsorship').value='all'; $('report-mode').value='all';
+    $('report-score').value='40'; $('report-relocation').checked=true; render();
+  });
+  $('report-score').addEventListener('input', () => $('report-score-value').textContent=$('report-score').value);
+  $('report-keyword').addEventListener('keydown', e => {if(e.key==='Enter') render();});
+  load();
+})();
+</script>
+
 </main>
 <footer>Talent Bridge AU · NZ · Painel local, sem cadastro, banco de dados ou backend.</footer>
 <script>
