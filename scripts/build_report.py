@@ -46,6 +46,24 @@ OUTSIDE_TERMS = ["united states", "u.s.-only", "us only", "usa only", "remote us
 SPONSOR_TERMS = ["visa sponsorship","sponsorship available","482 visa","subclass 482","employer sponsored","employer sponsorship","accredited employer","work visa","visa support","sponsor visa"]
 RELOCATION_TERMS = ["relocation","relocation assistance","relocation package","relocation support"]
 NEGATIVE_TERMS = ["no sponsorship","not offering sponsorship","must have full working rights","full working rights required","unrestricted working rights","citizen or permanent resident only"]
+# Hard exclusions: the wording below means the employer does not sponsor work visas.
+NO_SPONSORSHIP_PHRASES = [
+    "must be legally authorized to work in country of employment without sponsorship visa",
+    "must be legally authorized to work in the country of employment without visa sponsorship",
+    "must be legally authorized to work in country of employment without visa sponsorship",
+    "without sponsorship visa",
+    "without visa sponsorship",
+    "will not require sponsorship",
+    "no visa sponsorship",
+    "unable to provide sponsorship",
+    "we do not sponsor work visas",
+]
+CLOSED_JOB_TERMS = [
+    "job is no longer available", "this job is no longer available",
+    "position has been filled", "applications are closed", "application period has closed",
+    "no longer accepting applications", "job posting has expired", "vacancy has expired",
+    "this position is closed", "requisition is closed", "job has been closed",
+]
 NOISE_TERMS = ["course","training","salary guide","what is","how to become","resume template"]
 
 def matches(text, terms):
@@ -64,6 +82,7 @@ def classify(item, meta):
     desc = (item.get("description") or "").strip()
     url = (item.get("url") or "").strip()
     text = f"{title} {desc} {url}".lower()
+    age = str(item.get("age") or item.get("page_age") or "").strip().lower()
     roles = matches(text, ROLE_TERMS)
     title_roles = matches(title, ROLE_TERMS)
     sponsor = matches(text, SPONSOR_TERMS)
@@ -71,6 +90,21 @@ def classify(item, meta):
     negatives = matches(text, NEGATIVE_TERMS)
     if not roles or matches(text, NOISE_TERMS) or not url.startswith("http"):
         return None
+
+    # Exclude explicit no-sponsorship clauses even if other text mentions sponsorship.
+    if matches(text, NO_SPONSORSHIP_PHRASES):
+        return None
+
+    # Reject listings explicitly marked closed/expired, and search results older than 30 days.
+    if matches(text, CLOSED_JOB_TERMS):
+        return None
+    age_match = __import__("re").search(r"(\d+)\s*(day|week|month|year)s?\s+ago", age)
+    if age_match:
+        age_value = int(age_match.group(1))
+        age_unit = age_match.group(2)
+        age_days = age_value if age_unit == "day" else age_value * 7 if age_unit == "week" else age_value * 30 if age_unit == "month" else age_value * 365
+        if age_days > 30:
+            return None
 
     # Reject remote roles entirely, per the user's requirement (including remote AU/NZ roles).
     if matches(text, REMOTE_TERMS):
