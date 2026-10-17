@@ -62,3 +62,85 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Email job report
+        continue-on-error: true
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          REPORT_URL: https://fruschel-test.github.io/jobseeker/
+        run: |
+          python - <<'PY'
+          import html
+          import json
+          import os
+          import sys
+          import urllib.request
+          from pathlib import Path
+
+          api_key = os.getenv("RESEND_API_KEY", "").strip()
+          sender = os.getenv("EMAIL_FROM", "").strip()
+          if not api_key or not sender:
+              print("Email not sent: configure RESEND_API_KEY and EMAIL_FROM in repository Actions secrets.")
+              sys.exit(0)
+
+          data = json.loads(Path("public/jobs.json").read_text(encoding="utf-8"))
+          jobs = data.get("jobs", [])
+          report_url = os.getenv("REPORT_URL", "https://fruschel-test.github.io/jobseeker/")
+          generated_at = data.get("generated_at", "horário não informado")
+          au = sum(1 for job in jobs if job.get("country") == "AU")
+          nz = sum(1 for job in jobs if job.get("country") == "NZ")
+
+          rows = []
+          for job in jobs[:12]:
+              title = html.escape(str(job.get("title", "Vaga sem título")))
+              url = html.escape(str(job.get("url", report_url)), quote=True)
+              country = html.escape(str(job.get("country", "")))
+              source = html.escape(str(job.get("source", "")))
+              score = int(job.get("score", 0) or 0)
+              status = html.escape(str(job.get("status", "Sponsorship não confirmado")))
+              relocation = " · Relocation mencionada" if job.get("relocation") else ""
+              rows.append(
+                  f'<li style="margin:0 0 16px"><a href="{url}"><strong>{title}</strong></a>'
+                  f'<br><span style="color:#536078">{country} · {source} · Relevância {score}/100</span>'
+                  f'<br><span>{status}{relocation}</span></li>'
+              )
+
+          listing = "".join(rows) if rows else "<p>Nenhuma vaga passou pelos filtros nesta execução.</p>"
+          subject = f"Talent Bridge AU/NZ — {len(jobs)} vagas no relatório"
+          body_html = f"""<!doctype html><html><body style="font:15px/1.5 Arial,sans-serif;color:#172033;max-width:720px;margin:auto;padding:24px">
+          <h1 style="color:#17264a">Talent Bridge <span style="color:#2457d6">AU · NZ</span></h1>
+          <p>O relatório automático de vagas foi atualizado.</p>
+          <p><strong>Última execução:</strong> {html.escape(generated_at)} UTC</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0"><tr>
+          <td style="padding:12px;background:#f2f5fb"><strong>{len(jobs)}</strong><br>Total de vagas</td>
+          <td style="padding:12px;background:#f2f5fb"><strong>{au}</strong><br>Austrália</td>
+          <td style="padding:12px;background:#f2f5fb"><strong>{nz}</strong><br>Nova Zelândia</td>
+          </tr></table>
+          <p><a href="{html.escape(report_url, quote=True)}" style="display:inline-block;background:#2457d6;color:white;padding:10px 14px;border-radius:8px;text-decoration:none">Abrir dashboard</a></p>
+          <h2>Vagas em destaque</h2><ol>{listing}</ol>
+          <p style="color:#66728a;font-size:12px">Sponsorship e relocation são pistas extraídas dos resultados de busca, não garantias. Confirme as condições no anúncio original.</p>
+          </body></html>"""
+          payload = json.dumps({
+              "from": sender,
+              "to": ["fabio@e-ruschel.com"],
+              "subject": subject,
+              "html": body_html
+          }).encode("utf-8")
+          req = urllib.request.Request(
+              "https://api.resend.com/emails",
+              data=payload,
+              headers={
+                  "Authorization": f"Bearer {api_key}",
+                  "Content-Type": "application/json",
+                  "User-Agent": "TalentBridgeAU-NZ/1.0"
+              },
+              method="POST"
+          )
+          try:
+              with urllib.request.urlopen(req, timeout=25) as response:
+                  print(f"Email provider accepted the report (HTTP {response.status}).")
+          except Exception as exc:
+              print(f"Email delivery request failed: {type(exc).__name__}: {exc}", file=sys.stderr)
+              raise
+          PY
