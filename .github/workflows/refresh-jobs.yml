@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
@@ -25,18 +25,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Prepare dashboard for publication
+        run: |
+          mkdir -p public
+          cp index.html public/index.html
+          test -s public/index.html
+
       - name: Build latest job report
         env:
           BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
         run: python scripts/build_report.py
+
+      - name: Validate publication files
+        run: |
+          test -s public/index.html
+          test -s public/jobs.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("public/jobs.json").read_text(encoding="utf-8"))
+          assert isinstance(data.get("jobs"), list), "jobs.json must contain a jobs array"
+          print(f"Validated dashboard and jobs.json ({len(data['jobs'])} jobs)")
+          PY
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: public
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
