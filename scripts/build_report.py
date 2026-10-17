@@ -37,7 +37,7 @@ QUERIES = [
 for _query in QUERIES:
     _query["q"] += ' -remote -"United States" -USA -"United Kingdom" -Canada'
 
-ROLE_TERMS = ["software engineering manager","platform engineering manager","engineering manager","cloud engineering manager","devops manager","head of engineering","infrastructure engineering manager","platform engineering lead","engineering lead","director of engineering","engineering director","head of platform","platform lead"]
+ROLE_TERMS = ["software engineering manager","software development manager","engineering manager, software","cloud platform manager","cloud engineering manager","platform engineering manager","cloud operations manager","support manager","technical support manager","it support manager","customer support engineering manager","production support manager","engineering manager","devops manager","head of engineering","infrastructure engineering manager","platform engineering lead","engineering lead","director of engineering","engineering director","head of platform","platform lead"]
 # Require location evidence in the result itself; Brave's country parameter alone is not enough.
 AU_LOCATION_TERMS = ["australia", "sydney", "melbourne", "brisbane", "perth", "adelaide", "canberra", "gold coast", "hobart", "new south wales", "victoria, australia", "queensland", "western australia", "south australia", "tasmania", "act, australia"]
 NZ_LOCATION_TERMS = ["new zealand", "auckland", "wellington", "christchurch", "hamilton, new zealand", "tauranga", "dunedin", "queenstown", "waikato", "canterbury, new zealand"]
