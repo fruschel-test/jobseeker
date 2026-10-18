@@ -42,7 +42,22 @@ ROLE_TERMS = ["software engineering manager","software development manager","eng
 AU_LOCATION_TERMS = ["australia", "sydney", "melbourne", "brisbane", "perth", "adelaide", "canberra", "gold coast", "hobart", "new south wales", "victoria, australia", "queensland", "western australia", "south australia", "tasmania", "act, australia"]
 NZ_LOCATION_TERMS = ["new zealand", "auckland", "wellington", "christchurch", "hamilton, new zealand", "tauranga", "dunedin", "queenstown", "waikato", "canterbury, new zealand"]
 REMOTE_TERMS = ["remote", "work from anywhere", "anywhere in the world", "fully distributed", "distributed team", "work remotely"]
-OUTSIDE_TERMS = ["united states", "u.s.-only", "us only", "usa only", "remote us", "remote - us", "remote, us", "remote usa", "united kingdom only", "uk only", "canada only", "india only", "europe only"]
+OUTSIDE_TERMS = [
+    "united states", "united states of america", "u.s.-only", "us only", "usa only",
+    "remote us", "remote - us", "remote, us", "remote usa", "based in the us",
+    "based in usa", "located in the united states", "location: usa", "location: us",
+    "united kingdom only", "uk only", "canada only", "india only", "europe only",
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado",
+    "connecticut", "delaware", "florida", "hawaii", "idaho", "illinois",
+    "indiana", "iowa", "kansas", "kentucky", "louisiana", "maine", "maryland",
+    "massachusetts", "michigan", "minnesota", "mississippi", "missouri",
+    "montana", "nebraska", "nevada", "new hampshire", "new jersey", "new mexico",
+    "new york", "north carolina", "north dakota", "ohio", "oklahoma", "oregon",
+    "pennsylvania", "rhode island", "south carolina", "south dakota", "tennessee",
+    "texas", "utah", "vermont", "virginia", "washington, dc", "west virginia",
+    "wisconsin", "wyoming", "washington state", "san francisco", "los angeles",
+    "new york city", "seattle", "austin, tx", "chicago", "boston, ma",
+]
 SPONSOR_TERMS = ["visa sponsorship","sponsorship available","482 visa","subclass 482","employer sponsored","employer sponsorship","accredited employer","work visa","visa support","sponsor visa"]
 RELOCATION_TERMS = ["relocation","relocation assistance","relocation package","relocation support"]
 NEGATIVE_TERMS = ["no sponsorship","not offering sponsorship","must have full working rights","full working rights required","unrestricted working rights","citizen or permanent resident only"]
@@ -127,7 +142,7 @@ def classify(item, meta):
         return None
 
     # Explicit off-target location/eligibility signals override a generic sponsorship mention.
-    if matches(text, OUTSIDE_TERMS):
+    if domain.endswith(".us") or matches(text, OUTSIDE_TERMS):
         return None
 
     if "seek.com.au" in domain or "seek.co.nz" in domain:
