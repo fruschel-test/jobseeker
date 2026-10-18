@@ -56,7 +56,7 @@ OUTSIDE_TERMS = [
     "pennsylvania", "rhode island", "south carolina", "south dakota", "tennessee",
     "texas", "utah", "vermont", "virginia", "washington, dc", "west virginia",
     "wisconsin", "wyoming", "washington state", "san francisco", "los angeles",
-    "new york city", "seattle", "austin, tx", "chicago", "boston, ma",
+    "new york city", "seattle", "austin, tx", "chicago", "boston, ma", "berkeley", "berkeley, ca",
 ]
 SPONSOR_TERMS = ["visa sponsorship","sponsorship available","482 visa","subclass 482","employer sponsored","employer sponsorship","accredited employer","work visa","visa support","sponsor visa"]
 RELOCATION_TERMS = ["relocation","relocation assistance","relocation package","relocation support"]
